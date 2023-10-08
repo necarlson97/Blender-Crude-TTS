@@ -186,46 +186,9 @@ def clear_mouth_keyframes(mouth):
         if any(name in fcurve.data_path for name in relevant_shape_key_names):
             fcurve.keyframe_points.clear()
 
-def clear_nla_data(obj):
-    """
-    Clear actions and NLA tracks from the given object.
-    """
-    # TODO likely remove, I don't think this is doing anything
-    if not obj.animation_data:
-        return
-    obj.animation_data.action = None
-    for track in obj.animation_data.nla_tracks:
-        obj.animation_data.nla_tracks.remove(track)
-
-def create_action(obj, name, idx):
-    """
-    For an object, package all of the recent keyframes to an
-    'action' and push to the Non-Linear Animator (NLA) to more
-    easily re-order or change the speed of an enitre line,
-    rather than editing keyframes manually
-    """
-    # TODO remove, this does not seeem to have intended behavior,
-    # and NLA is too cumbersome to be worthwhile currently anyway
-    obj.animation_data_create()
-    action = bpy.data.actions.new(name=f"{idx}-{name}")
-    obj.animation_data.action = action
-    
-    # Create 2 tracks
-    while len(obj.animation_data.nla_tracks) < 2:
-        obj.animation_data.nla_tracks.new()
-    # Alternate between them
-    track = obj.animation_data.nla_tracks[idx % 2]
-
-    # Calculate the start frame for the new strip.
-    # Ensure that the strips don't overlap in time.
-    if track.strips:
-        start_frame = int(track.strips[-1].frame_end)
-    else:
-        start_frame = int(action.frame_range[0])
-    track.strips.new(action.name, start_frame, action)
-
-    # Optionally mute the action to avoid double transforms (once from the action and once from the NLA)
-    obj.animation_data.action = None
+def clear_vse():
+    bpy.context.window.workspace = bpy.data.workspaces["Video Editing"]
+    bpy.context.scene.sequence_editor_clear()
 
 def main(dialogue, directory, letter_duration, start_frame=20, audio=False):
     """
@@ -249,11 +212,8 @@ def main(dialogue, directory, letter_duration, start_frame=20, audio=False):
     clear_markers()
     clear_collection('subtitles')
     clear_mouth_keyframes(mouth)
-    clear_nla_data(mouth)
-    # Remove previous strips from VSE
     if (audio):
-        bpy.context.window.workspace = bpy.data.workspaces["Video Editing"]
-        bpy.context.scene.sequence_editor_clear()
+        clear_vse()
 
     # Check if the 'subtitles' collection exists, if not create it
     if 'subtitles' not in bpy.data.collections:
@@ -312,6 +272,12 @@ def main(dialogue, directory, letter_duration, start_frame=20, audio=False):
         keyframe_subtitle_visibility(text_obj, current_frame, False)
 
     bpy.context.window.workspace = bpy.data.workspaces["Layout"]
+
+    # For now, let's select these new objects
+    bpy.ops.object.select_all(action='DESELECT')
+    mouth.select_set(True)
+    for text_obj in subtitles_collection.objects:
+        text_obj.select_set(True)
 
 
 # Update with your desired dialogue, directory path, letter_duration:
